@@ -224,43 +224,99 @@
   </div>
 
   <script>
-    // Blog: almacenamiento simple en localStorage
-    const key = 'jb_posts_v1';
-    const titleEl = document.getElementById('post-title');
-    const tagsEl = document.getElementById('post-tags');
-    const bodyEl = document.getElementById('post-body');
-    const postsEl = document.getElementById('posts');
+  const key = 'jb_posts_v1';
+  const titleEl = document.getElementById('post-title');
+  const tagsEl = document.getElementById('post-tags');
+  const bodyEl = document.getElementById('post-body');
+  const postsEl = document.getElementById('posts');
 
-    function loadPosts(){
-      const raw = localStorage.getItem(key);
-      if(!raw) return [];
-      try{ return JSON.parse(raw); }catch(e){return []}
-    }
-    function savePosts(posts){ localStorage.setItem(key, JSON.stringify(posts)); }
-    function renderPosts(){
-      const posts = loadPosts().slice().reverse();
-      postsEl.innerHTML = '';
-      if(posts.length===0){ postsEl.innerHTML = '<div class="post-card">No hay entradas publicadas aún.</div>'; return }
-      posts.forEach((p, i)=>{
-        const div = document.createElement('div'); div.className='post-card';
-        div.innerHTML = `<strong>${escapeHtml(p.title)}</strong><div style="font-size:13px;color:#6b7280;margin:6px 0">${p.tags||''} · ${new Date(p.published).toLocaleString()}</div><div style="white-space:pre-wrap;color:#111">${escapeHtml(p.body.substring(0,400))}${p.body.length>400?'...':''}</div><div style="margin-top:8px"><button class="btn btn-ghost" data-i="${i}">Ver</button> <button class="btn btn-ghost" data-del="${i}">Eliminar</button></div>`;
-        postsEl.appendChild(div);
-      })
-    }
-    function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function loadPosts(){
+    const raw = localStorage.getItem(key);
+    if(!raw) return [];
+    try { return JSON.parse(raw); } catch(e){ return []; }
+  }
 
-    document.getElementById('publish').addEventListener('click', ()=>{
-      const title = titleEl.value.trim(); const body = bodyEl.value.trim(); const tags = tagsEl.value.trim();
-      if(!title || !body){ alert('El artículo debe tener título y contenido.'); return }
-      const posts = loadPosts();
-      posts.push({title,body,tags,published:new Date().toISOString()});
-      savePosts(posts);
-      titleEl.value=''; tagsEl.value=''; bodyEl.value='';
-      renderPosts();
+  function savePosts(posts){ 
+    localStorage.setItem(key, JSON.stringify(posts)); 
+  }
+
+  function escapeHtml(s){ 
+    return String(s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;'); 
+  }
+
+  function renderPosts(){
+    const posts = loadPosts().slice().reverse();
+    postsEl.innerHTML = '';
+    if(posts.length===0){
+      postsEl.innerHTML = '<div class="post-card">No hay entradas publicadas aún.</div>';
+      return;
+    }
+    posts.forEach((p, i)=>{
+      const div = document.createElement('div'); 
+      div.className='post-card';
+      div.innerHTML = `
+        <strong>${escapeHtml(p.title)}</strong>
+        <div style="font-size:13px;color:#6b7280;margin:6px 0">${p.tags||''} · ${new Date(p.published).toLocaleString()}</div>
+        <div style="white-space:pre-wrap;color:#111" id="body-${i}">${escapeHtml(p.body.substring(0,400))}${p.body.length>400?'...':''}</div>
+        <div style="margin-top:8px">
+          <button class="btn btn-ghost" data-i="${i}" data-action="view">Ver</button> 
+          <button class="btn btn-ghost" data-i="${i}" data-action="delete">Eliminar</button>
+        </div>
+      `;
+      postsEl.appendChild(div);
     });
-    document.getElementById('clear').addEventListener('click', ()=>{ titleEl.value=''; tagsEl.value=''; bodyEl.value=''; });
-    document.getElementById('export').addEventListener('click', ()=>{
-      const posts = loadPosts();
-      const blob = new Blob([JSON.stringify(posts, null, 2)],{type:'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download='posts-jb.json'; document.body.appendChild(a
+
+    postsEl.querySelectorAll('button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = btn.getAttribute('data-i');
+        const action = btn.getAttribute('data-action');
+        const posts = loadPosts();
+        if(action==='delete'){
+          if(confirm('¿Seguro que quieres eliminar este artículo?')){
+            posts.splice(idx,1);
+            savePosts(posts);
+            renderPosts();
+          }
+        } else if(action==='view'){
+          alert(posts[idx].body);
+        }
+      });
+    });
+  }
+
+  document.getElementById('publish').addEventListener('click', ()=>{
+    const title = titleEl.value.trim();
+    const body = bodyEl.value.trim();
+    const tags = tagsEl.value.trim();
+    if(!title || !body){ alert('El artículo debe tener título y contenido.'); return; }
+    const posts = loadPosts();
+    posts.push({title,body,tags,published:new Date().toISOString()});
+    savePosts(posts);
+    titleEl.value=''; tagsEl.value=''; bodyEl.value='';
+    renderPosts();
+  });
+
+  document.getElementById('clear').addEventListener('click', ()=>{
+    titleEl.value=''; tagsEl.value=''; bodyEl.value='';
+  });
+
+  document.getElementById('export').addEventListener('click', ()=>{
+    const posts = loadPosts();
+    const blob = new Blob([JSON.stringify(posts, null, 2)],{type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); 
+    a.href = url; 
+    a.download='posts-jb.json'; 
+    document.body.appendChild(a); 
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  // Render inicial
+  renderPosts();
+</script>
+
